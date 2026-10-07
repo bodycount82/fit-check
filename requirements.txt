@@ -1,0 +1,7 @@
+# Runtime dependencies for the published reference implementation.
+# Deliberately small: enough to run the repo standalone.
+
+requests>=2.31
+streamlit>=1.30
+Pillow>=10.0
+pytest>=8.0

@@ -1,0 +1,23 @@
+# Secrets — never commit
+.env
+*.env
+!.env.example
+
+# Private drop-in advisor (never committed)
+advisor_private.py
+private/
+*.private.py
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Local artifacts
+outputs/
+runs/
+*.log
