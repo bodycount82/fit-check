@@ -38,6 +38,24 @@ class YouCamError(RuntimeError):
     """Raised when the API returns an error we cannot recover from."""
 
 
+def _data_of(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return the payload's data object, tolerating both envelope shapes.
+
+    The live S2S API wraps success bodies as ``{"status": 200, "data": {...}}``.
+    Older docs and the mocked tests used ``{"result": {...}}``. This reads either,
+    so the client works against the real API without breaking the offline tests.
+    """
+    if not isinstance(payload, dict):
+        return {}
+    data = payload.get("data")
+    if isinstance(data, dict):
+        return data
+    result = payload.get("result")
+    if isinstance(result, dict):
+        return result
+    return {}
+
+
 @dataclass
 class TaskResult:
     """The outcome of one YouCam task."""
@@ -98,21 +116,36 @@ class YouCamClient:
         """Upload a local image and return its file_id.
 
         Uses the File API to get a presigned URL, then PUTs the bytes there.
+
+        Response shape (verified live 2026-10-09 against yce-api-01):
+            {"status": 200, "data": {"files": [
+                {"file_id": "...", "requests": [{"method": "PUT", "url": "...",
+                 "headers": {"Content-Length": "...", "Content-Type": "..."}}]}]}}
+        Note: the envelope is ``status``/``data``, NOT ``result``, and ``requests``
+        is a LIST of upload instructions, not a single object.
         """
         filename = os.path.basename(path)
+        size = os.path.getsize(path)
         resp = self.session.post(
             self._url("/s2s/v2.0/file"),
             headers=self._headers,
-            json={"files": [{"content_type": "image/jpeg", "file_name": filename}]},
+            json={"files": [{"content_type": "image/jpeg", "file_name": filename,
+                             "file_size": size}]},
             timeout=self.timeout,
         )
         self._raise_for_status(resp, "file API")
         payload = resp.json()
-        entries = payload.get("result", {}).get("files") or payload.get("files") or []
+        entries = _data_of(payload).get("files") or payload.get("files") or []
         if not entries:
             raise YouCamError(f"File API returned no upload entry: {payload}")
         entry = entries[0]
-        upload_url = entry.get("requests", {}).get("url") or entry.get("url")
+        # `requests` is a list of one upload instruction in the live API; older/
+        # mocked shapes used a single object. Accept both.
+        reqs = entry.get("requests") or {}
+        if isinstance(reqs, list):
+            reqs = reqs[0] if reqs else {}
+        upload_url = reqs.get("url") or entry.get("url")
+        upload_headers = reqs.get("headers") or {"Content-Type": "image/jpeg"}
         file_id = entry.get("file_id") or entry.get("id")
         if not upload_url or not file_id:
             raise YouCamError(f"File API entry missing url/file_id: {entry}")
@@ -144,7 +177,7 @@ class YouCamClient:
             timeout=self.timeout,
         )
         self._raise_for_status(submit, f"{feature} submit")
-        task_id = submit.json().get("result", {}).get("task_id")
+        task_id = _data_of(submit.json()).get("task_id")
         if not task_id:
             raise YouCamError(f"No task_id from {feature}: {submit.text[:400]}")
 
@@ -155,7 +188,7 @@ class YouCamClient:
                 timeout=self.timeout,
             )
             self._raise_for_status(poll, f"{feature} poll")
-            data = poll.json().get("result", {})
+            data = _data_of(poll.json())
             status = data.get("task_status") or data.get("status")
             if status == "success":
                 return TaskResult(
