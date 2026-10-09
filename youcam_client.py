@@ -23,6 +23,12 @@ from typing import Any, Callable
 import requests
 
 # Feature endpoint names. These are the real paths under /s2s/v2.0/task/.
+# The S2S API host. NOT yce.perfectcorp.com — that is the marketing / online-editor
+# site and answers the API with a 403 HTML page. Verified live 2026-10-09:
+#   yce-api-01.perfectcorp.com  + good key -> 200
+#   yce-api-01.perfectcorp.com  + bad key  -> 401 InvalidApiKey
+DEFAULT_API_BASE = "https://yce-api-01.perfectcorp.com"
+
 FEATURE_SKIN_ANALYSIS = "skin-analysis"
 FEATURE_CLOTHES_VTO = "cloth"
 FEATURE_RING_VTO = "ring"
@@ -69,7 +75,7 @@ class YouCamClient:
                 "No YouCam API key. Set YOUCAM_API_KEY (see .env.example)."
             )
         self.base_url = (base_url or os.environ.get(
-            "YOUCAM_API_BASE", "https://yce.perfectcorp.com")).rstrip("/")
+            "YOUCAM_API_BASE", DEFAULT_API_BASE)).rstrip("/")
         self.session = session or requests.Session()
         self.timeout = timeout
         self._sleep = sleep

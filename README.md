@@ -86,7 +86,7 @@ All configuration is read from the environment. See `.env.example`.
 | Variable | Required | Purpose |
 |---|---|---|
 | `YOUCAM_API_KEY` | no* | Auth for the YouCam S2S API. Not needed for the standalone demo. |
-| `YOUCAM_API_BASE` | no | Base host for the server-to-server API. Defaults to `https://yce.perfectcorp.com`. |
+| `YOUCAM_API_BASE` | no | Base host for the server-to-server API. Defaults to `https://yce-api-01.perfectcorp.com`. |
 | `FITCHECK_ADVISOR` | no | Private drop-in spec: `module:ClassName`. Empty = rule-based reference. |
 | `OPENAI_API_KEY` | no | If using an LLM-backed advisor drop-in. |
 | `OPENAI_BASE_URL` | no | Base URL for the LLM endpoint. |
